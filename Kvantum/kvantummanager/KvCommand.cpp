@@ -18,6 +18,7 @@
 #include "KvCommand.h"
 #include <QDir>
 #include <QSettings>
+#include <QStandardPaths>
 
 namespace KvManager {
 
@@ -148,6 +149,36 @@ static const QStringList getAllThemes()
 
     /* now add the root themes */
     QStringList rootList;
+    const QStringList xdgKvantumDirs = QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QString("Kvantum"), QStandardPaths::LocateDirectory);
+    for (const QString &xdgKvantumDir : xdgKvantumDirs)
+    {
+      kv = QDir(xdgKvantumDir);
+      if (kv.exists())
+      {
+          const QStringList folders = kv.entryList (QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+          for (const QString &folder : folders)
+          {
+              QString path = QString ("%1/%2").arg (xdgKvantumDir).arg (folder);
+              if (!folder.contains ("#") && isThemeDir (path))
+              {
+                if (!list.contains (folder) // a user theme with the same name takes priority
+                    && !list.contains (folder + "#")
+                    // a root theme inside 'XDG_DATA_DIRS/Kvantum/' with the same name takes priority
+                    && !rootList.contains (folder))
+                {
+                    rootList << folder;
+                }
+                if (isLightWithDarkDir (path)
+                    && !list.contains (folder + "Dark")
+                    && !list.contains (folder + "Dark" + "#")
+                    && !rootList.contains (folder + "Dark"))
+                {
+                    rootList << (folder + "Dark");
+                }
+              }
+          }
+      }
+    }
     kv = QDir (QString (DATADIR) + QString ("/Kvantum"));
     if (kv.exists())
     {
@@ -158,13 +189,16 @@ static const QStringList getAllThemes()
             if (!folder.contains ("#") && isThemeDir (path))
             {
                 if (!list.contains (folder) // a user theme with the same name takes priority
-                    && !list.contains (folder + "#"))
+                    && !list.contains (folder + "#")
+                    // a root theme inside 'XDG_DATA_DIRS/Kvantum/' with the same name takes priority
+                    && !rootList.contains (folder))
                 {
                     rootList << folder;
                 }
                 if (isLightWithDarkDir (path)
                     && !list.contains (folder + "Dark")
-                    && !list.contains (folder + "Dark" + "#"))
+                    && !list.contains (folder + "Dark" + "#")
+                    && !rootList.contains (folder + "Dark"))
                 {
                     rootList << (folder + "Dark");
                 }

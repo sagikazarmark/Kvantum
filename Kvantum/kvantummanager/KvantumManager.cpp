@@ -500,6 +500,22 @@ QString KvantumManager::rootThemeDir (const QString &themeName) const
     {
         return QString();
     }
+    // XDG_DATA_DIRS/Kvantum
+    const QStringList xdgKvantumDirs = QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QString("Kvantum"), QStandardPaths::LocateDirectory);
+    for (const QString &xdgKvantumDir : xdgKvantumDirs)
+    {
+      QString themeDir = QString ("%1/%2").arg (xdgKvantumDir).arg (themeName);
+      if (fileBelongsToThemeDir (themeName, themeDir))
+          return themeDir;
+      QString lightFolder;
+      if (themeName.size() > 4 && themeName.endsWith ("Dark"))
+      {
+          lightFolder = themeName.left (themeName.size() - 4);
+          themeDir = QString ("%1/%2").arg (xdgKvantumDir).arg (lightFolder);
+          if (fileBelongsToThemeDir (themeName, themeDir))
+              return themeDir;
+      }
+    }
     // /usr/share/Kvantum
     QString themeDir = QString (DATADIR) + QString ("/Kvantum/") + themeName;
     if (fileBelongsToThemeDir (themeName, themeDir))
@@ -1968,6 +1984,36 @@ void KvantumManager::updateThemeList (bool updateAppThemes)
 
     /* now add the root themes */
     QStringList rootList;
+    const QStringList xdgKvantumDirs = QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QString("Kvantum"), QStandardPaths::LocateDirectory);
+    for (const QString &xdgKvantumDir : xdgKvantumDirs)
+    {
+      kv = QDir(xdgKvantumDir);
+      if (kv.exists())
+      {
+          const QStringList folders = kv.entryList (QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+          for (const QString &folder : folders)
+          {
+              QString path = QString ("%1/%2").arg (xdgKvantumDir).arg (folder);
+              if (!folder.contains ("#") && isThemeDir (path))
+              {
+                if (!list.contains (folder) // a user theme with the same name takes priority
+                    && !list.contains (folder + modifiedSuffix_)
+                    // a root theme inside 'DATADIR/Kvantum/' with the same name takes priority
+                    && !rootList.contains (folder))
+                {
+                    rootList.append (folder);
+                }
+                if (isLightWithDarkDir (path)
+                    && !list.contains (folder + "Dark")
+                    && !list.contains (folder + "Dark" + modifiedSuffix_)
+                    && !rootList.contains (folder + "Dark"))
+                {
+                    rootList.append (folder + "Dark");
+                }
+              }
+          }
+      }
+    }
     kv = QDir (QString (DATADIR) + QString ("/Kvantum"));
     if (kv.exists())
     {
@@ -1978,13 +2024,16 @@ void KvantumManager::updateThemeList (bool updateAppThemes)
             if (!folder.contains ("#") && isThemeDir (path))
             {
                 if (!list.contains (folder) // a user theme with the same name takes priority
-                    && !list.contains (folder + modifiedSuffix_))
+                    && !list.contains (folder + modifiedSuffix_)
+                    // a root theme inside 'DATADIR/Kvantum/' with the same name takes priority
+                    && !rootList.contains (folder))
                 {
                     rootList.append (folder);
                 }
                 if (isLightWithDarkDir (path)
                     && !list.contains (folder + "Dark")
-                    && !list.contains (folder + "Dark" + modifiedSuffix_))
+                    && !list.contains (folder + "Dark" + modifiedSuffix_)
+                    && !rootList.contains (folder + "Dark"))
                 {
                     rootList.append (folder + "Dark");
                 }
